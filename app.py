@@ -1,32 +1,30 @@
 from flask import Flask, request, send_file
-import subprocess
-import os
-import tempfile
+from flask_cors import CORS
+import subprocess, os, tempfile
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route("/convert", methods=["POST"])
 def convert():
-    if 'file' not in request.files:
-        return {"error": "No file uploaded"}, 400
+    file = request.files.get("file")
+    if not file:
+        return "No file uploaded", 400
 
-    uploaded_file = request.files['file']
-    with tempfile.TemporaryDirectory() as tmpdir:
-        doc_path = os.path.join(tmpdir, uploaded_file.filename)
-        uploaded_file.save(doc_path)
-        pdf_path = os.path.join(tmpdir, "output.pdf")
+    temp_dir = tempfile.gettempdir()
+    input_path = os.path.join(temp_dir, file.filename)
+    file.save(input_path)
 
-        subprocess.run([
-            "libreoffice",
-            "--headless",
-            "--convert-to",
-            "pdf",
-            "--outdir",
-            tmpdir,
-            doc_path
-        ], check=True)
+    subprocess.run([
+        "libreoffice",
+        "--headless",
+        "--convert-to", "pdf",
+        "--outdir", temp_dir,
+        input_path
+    ], check=True)
 
-        return send_file(pdf_path, as_attachment=True)
+    pdf_path = os.path.join(temp_dir, file.filename.rsplit('.', 1)[0] + ".pdf")
+    if not os.path.exists(pdf_path):
+        return "Conversion failed", 500
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    return send_file(pdf_path, as_attachment=True)
