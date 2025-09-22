@@ -4,14 +4,21 @@ FROM python:3.11-slim
 # Install LibreOffice headless
 RUN apt-get update && \
     apt-get install -y libreoffice && \
-    apt-get clean
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy app
-COPY requirements.txt /app/requirements.txt
+# Set working directory
 WORKDIR /app
-RUN pip install -r requirements.txt
 
-COPY app.py /app/app.py
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy Flask app
+COPY convert.py .
+
+# Expose port (Render provides PORT environment variable)
 EXPOSE 5000
-CMD ["python", "app.py"]
+
+# Start Flask app
+CMD ["python", "convert.py"]
